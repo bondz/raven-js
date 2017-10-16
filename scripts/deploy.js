@@ -12,6 +12,13 @@ process.on('unhandledRejection', reason => console.log(reason));
 
   console.log(`\nCurrent version: ${currentVersion}\n`);
 
+  await askUnskippableQuestion(
+    `Have you verified TypeScript definitions file? [typescript/raven.d.ts]`
+  );
+  await askUnskippableQuestion(
+    `Have you updated changelog file with recent features and bugfixes? [CHANGELOG.md]`
+  );
+
   const nextVersion = await inquirer
     .prompt({
       name: 'bump',
@@ -43,124 +50,97 @@ process.on('unhandledRejection', reason => console.log(reason));
         })
     );
 
-  await inquirer
-    .prompt({
-      name: 'shouldUpdateFiles',
-      message: `Do you want to update all files to version ${nextVersion}?`,
-      type: 'confirm',
-      default: false
-    })
-    .then(
-      ({shouldUpdateFiles}) =>
-        new Promise((resolve, reject) => {
-          if (!shouldUpdateFiles) return resolve();
-          updatePackageConfig(nextVersion);
-          updateBowerConfig(nextVersion);
-          updateDocsConfig(nextVersion);
-          updateSource(nextVersion);
-          updateTest(nextVersion);
-          resolve();
-        })
-    );
+  const {shouldUpdateFiles} = await inquirer.prompt({
+    name: 'shouldUpdateFiles',
+    message: `Do you want to update all files to version ${nextVersion}?`,
+    type: 'confirm',
+    default: false
+  });
 
-  await inquirer
-    .prompt({
-      name: 'shouldRunBuild',
-      message: `Do you want to run the build process?`,
-      type: 'confirm',
-      default: false
-    })
-    .then(
-      ({shouldRunBuild}) =>
-        new Promise(resolve => {
-          if (!shouldRunBuild) return resolve();
-          runBuild();
-          resolve();
-        })
-    );
+  if (shouldUpdateFiles) {
+    updatePackageConfig(nextVersion);
+    updateBowerConfig(nextVersion);
+    updateDocsConfig(nextVersion);
+    updateSource(nextVersion);
+    updateTest(nextVersion);
+  }
 
-  await inquirer
-    .prompt({
-      name: 'shouldCommitChanges',
-      message: `Do you want to commit the changes?`,
-      type: 'confirm',
-      default: false
-    })
-    .then(
-      ({shouldCommitChanges}) =>
-        new Promise(resolve => {
-          if (!shouldCommitChanges) return resolve();
-          commitChanges(nextVersion);
-          resolve();
-        })
-    );
+  const {shouldRunBuild} = await inquirer.prompt({
+    name: 'shouldRunBuild',
+    message: `Do you want to run the build process?`,
+    type: 'confirm',
+    default: false
+  });
 
-  await inquirer
-    .prompt({
-      name: 'shouldCreateTag',
-      message: `Do you want to create a tag?`,
-      type: 'confirm',
-      default: false
-    })
-    .then(
-      ({shouldCreateTag}) =>
-        new Promise(resolve => {
-          if (!shouldCreateTag) return resolve();
-          createTag(nextVersion);
-          resolve();
-        })
-    );
+  if (shouldRunBuild) runBuild();
 
-  await inquirer
-    .prompt({
-      name: 'shouldPushChanges',
-      message: `Do you want to push the changes?`,
-      type: 'confirm',
-      default: false
-    })
-    .then(
-      ({shouldPushChanges}) =>
-        new Promise(resolve => {
-          if (!shouldPushChanges) return resolve();
-          pushChanges();
-          resolve();
-        })
-    );
+  const {shouldCommitChanges} = await inquirer.prompt({
+    name: 'shouldCommitChanges',
+    message: `Do you want to commit the changes?`,
+    type: 'confirm',
+    default: false
+  });
 
-  await inquirer
-    .prompt({
-      name: 'shouldPublishOnCdn',
-      message: `Do you want to publish on CDN?`,
-      type: 'confirm',
-      default: false
-    })
-    .then(
-      ({shouldPublishOnCdn}) =>
-        new Promise(resolve => {
-          if (!shouldPublishOnCdn) return resolve();
-          publishOnCdn();
-          resolve();
-        })
-    );
+  if (shouldCommitChanges) commitChanges(nextVersion);
 
-  await inquirer
-    .prompt({
-      name: 'shouldPublishOnNpm',
-      message: `Do you want to publish on NPM?`,
-      type: 'confirm',
-      default: false
-    })
-    .then(
-      ({shouldPublishOnNpm}) =>
-        new Promise(resolve => {
-          if (!shouldPublishOnNpm) return resolve();
-          publishOnNpm();
-          resolve();
-        })
-    );
+  const {shouldCreateTag} = await inquirer.prompt({
+    name: 'shouldCreateTag',
+    message: `Do you want to create a tag?`,
+    type: 'confirm',
+    default: false
+  });
+
+  if (shouldCreateTag) createTag(nextVersion);
+
+  const {shouldPushChanges} = await inquirer.prompt({
+    name: 'shouldPushChanges',
+    message: `Do you want to push the changes?`,
+    type: 'confirm',
+    default: false
+  });
+
+  if (shouldPushChanges) pushChanges();
+
+  const {shouldPublishOnCdn} = await inquirer.prompt({
+    name: 'shouldPublishOnCdn',
+    message: `Do you want to publish on CDN?`,
+    type: 'confirm',
+    default: false
+  });
+
+  if (shouldPublishOnCdn) publishOnCdn();
+
+  const {shouldPublishOnNpm} = await inquirer.prompt({
+    name: 'shouldPublishOnNpm',
+    message: `Do you want to publish on NPM?`,
+    type: 'confirm',
+    default: false
+  });
+
+  if (shouldPublishOnNpm) publishOnNpm();
+
+  await askUnskippableQuestion(
+    `Sweet! Now go to https://github.com/getsentry/raven-js/releases and copy a changelog in there`
+  );
 
   console.log(`\n✔ Deployment of Raven.js ${nextVersion} complete!\n`);
 })();
+
+async function askUnskippableQuestion(question) {
+  const {answer} = await inquirer.prompt({
+    name: 'answer',
+    message: question,
+    type: 'confirm',
+    default: false
+  });
+
+  if (!answer) {
+    console.log(
+      'Wait A Sec Are U Trying To Cheat Me Again? Sorry, you have to do it ¯\\_(ツ)_/¯'
+    );
+    await askUnskippableQuestion(question);
+  }
+}
 
 function updatePackageConfig(nextVersion) {
   const filePath = path.join(__dirname, '../package.json');
@@ -214,10 +194,9 @@ function updateTest(nextVersion) {
 
 function execCommand(command) {
   try {
-    console.log('Running command:', command);
-    //child_process.execSync(command, {
-    //  stdio: 'inherit'
-    //})
+    child_process.execSync(command, {
+      stdio: 'inherit'
+    });
   } catch (e) {
     console.log(e);
     process.exit(1);
