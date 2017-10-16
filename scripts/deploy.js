@@ -36,10 +36,10 @@ process.on('unhandledRejection', reason => console.log(reason));
 
           switch (answers.bump) {
             case 'major':
-              resolve(`${major + 1}.${minor}.${patch}`);
+              resolve(`${major + 1}.0.0`);
               break;
             case 'minor':
-              resolve(`${major}.${minor + 1}.${patch}`);
+              resolve(`${major}.${minor + 1}.0`);
               break;
             case 'patch':
               resolve(`${major}.${minor}.${patch + 1}`);
